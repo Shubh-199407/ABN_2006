@@ -1,0 +1,105 @@
+pool:
+  name: xyz
+
+parameters:
+- name: 'deployment_environment'
+  displayName: Deployment Environment
+  type: string
+  values:
+    - 'development'
+    - 'acceptance'
+    - 'production'
+  default: 'development'
+ 
+trigger:
+ batch: true
+ branches:
+   include:
+   - refs/heads/master
+   - refs/heads/Releases/*
+   - refs/heads/Featutres/*
+   - refs/heads/Production/*
+
+ paths:
+   include:
+   - Pipelines
+
+resources:
+  repositories:
+    - repository: pipelines
+      type: git
+      name: TestProject/Assignment
+
+stages:
+- stage: SetVariableStage
+  pool: xyz
+  displayName: Set Variable Stage
+  jobs:
+  - job: SetVariableJob
+    displayName: Set Variable Job
+    steps:
+      - script: echo "##vso[task.setvariable variable=ApplicationName]awesome-app"
+        displayName: Set Output Variable 
+
+  - job: GetLatestVersion 
+    displayName: Get Latest Version  
+    steps:
+      - task: Bash@3
+        inputs:
+          targetType: 'inline'
+          script: |
+            pip download awesome-app --no-deps -d ./package_download
+            CURRENT_VERSION=`ls nexus | grep awesome-app | cut -d "-" -f2`
+            echo "Current Nexus Version is $CURRENT_VERSION"
+
+            echo "##vso[task.setvariable variable=ApplicationVersion]$CURRENT_VERSION"
+
+#Deployment Stage for Deployment environment
+
+- stage: Versioning
+  pool: xyz
+  displayName:  Versioning
+  dependsOn: SetVariableStage
+  condition: eq(startsWith('${{parameters.deployment_environment}}','development'),true)
+  jobs:
+    - deployment: DeploymentJob
+      environment: ${{parameters.deployment_environment}}
+      variables:
+        - name: SharedAppName
+          value: $[ stageDependencies.SetVariableStage.SetVariableJob.outputs['SetVariableJob.ApplicationName'] ]
+        - name: SharedVerName
+          value: $[ stageDependencies.SetVariableStage.GetLatestVersion.outputs['GetLatestVersion.ApplicationVersion'] ]
+      workspace:
+          clean: all
+      strategy:
+       runOnce:
+           deploy:
+             steps:
+             - script: |
+                 echo $(SharedAppName) is being deployed to ${{parameters.deployment_environment}}
+               displayName: Echo Environment and Application Name  
+
+#Deployment Stage for Production environment
+
+- stage: Versioning_Prod
+  pool: xyz
+  displayName:  VersioningProd
+  dependsOn: SetVariableStage
+  condition: and(eq(startsWith('${{parameters.deployment_environment}}','production'),true),ne(variables['Build.Reason'], 'Manual'))
+  jobs:
+    - deployment: DeploymentJob
+      environment: ${{parameters.deployment_environment}}
+      variables:
+        - name: SharedAppName
+          value: $[ stageDependencies.SetVariableStage.SetVariableJob.outputs['SetVariableJob.ApplicationName'] ]
+        - name: SharedVerName
+          value: $[ stageDependencies.SetVariableStage.GetLatestVersion.outputs['GetLatestVersion.ApplicationVersion'] ]  
+      workspace:
+          clean: all
+      strategy:
+       runOnce:
+           deploy:
+             steps:
+             - script: |
+                 echo $(SharedAppName) is being deployed to ${{parameters.deployment_environment}}
+               displayName: Echo Environment and Application Names
