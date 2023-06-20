@@ -1,20 +1,18 @@
 ## Description of the Azure services used for the High level architecture:
 1. **Azure Blob Storage**: Using Azure Blob Storage to store the CSV files as the input data source.
-    
-   **Reason** : Azure Blob Storage organizes data in containers, which act as logical folders. Within a container, you can create individual blobs for 
+    Azure Blob Storage organizes data in containers, which act as logical folders. Within a container, you can create individual blobs for 
                             each CSV file. Consider organizing your CSV files based on logical grouping, such as by date, data type, or application.
                               
  2. **Time Trigger and ETL**: 
 
     **- Azure Data Factory (ADF)**: Set up an ADF pipeline with a time-based trigger to schedule the ETL process.
 
-    **- ADF Data Flows** : Utilize ADF Data Flows to perform the ETL operations, including removing PII columns from the CSV data as they provide a visual and code-                      free environment for building and executing data transformation logic.
-
-    **Process**:
-
-    ADF Data Flows provide a visual and code-free environment for building data transformation logic. It offers a range of data transformation activities that can 
+    **- ADF Data Flows** : Utilize ADF Data Flows to perform the ETL operations, including removing PII columns from the CSV data as they provide a visual and code-                      free environment for building and executing data transformation logic.It offers a range of data transformation activities that can 
     be used to manipulate, clean, and transform data. In specific case,we can utilize the following activities to remove PII columns:
 
+
+    **Process**:
+ 
     **Select:** The Select activity allows to choose specific columns from the CSV data that we want to keep, excluding the PII columns.It is possible to specify 
                  column names or use expressions to exclude columns containing sensitive information.
 
@@ -48,7 +46,10 @@
 
 Here's an overview of how these services fit into the architecture:
 
-Use ADF to extract data from the relational database and load it into Azure Data Lake Storage.
-Use ADF to trigger a data movement pipeline that reads the data from the Data Lake, applies the filter logic using Azure Databricks, and writes the filtered output back to the Data Lake.
-Set up a separate data movement pipeline in ADF that reads the output from the other Data Lake, performs a join operation using Azure Synapse Analytics, and stores the joined result in the Data Lake.
-         
+Relational database output is loaded into Azure Data Lake Storage using Azure Data Factory.
+Filter operations are performed on the data stored in Azure Data Lake Storage using Azure Databricks.
+CSV file data is ingested from Azure Blob Storage using Azure Data Factory, with a time trigger to schedule the process.
+ETL operations, including PII column removal, are performed on the CSV data using ADF Data Flows.
+Separate data movement pipeline in ADF is set up that reads the output from the other Data Lake, performs a join operation between the filtered data and the ETL output using  using Azure Synapse Analytics, and stores the joined result in the Data Lake.
+Azure Power BI connects to Azure Data Lake Storage to create dashboards and reports based on the joined data.
+
